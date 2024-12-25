@@ -181,6 +181,7 @@ impl LspServer {
         *count += 1;
         let id = *count;
         let mut stdin = self.stdin.write().await;
+        println!("send_request: {:?} {:?}", id, R::METHOD);
         send_message(
             json!({
                 "jsonrpc": "2.0",
@@ -192,7 +193,7 @@ impl LspServer {
         )
         .await;
         drop(stdin);
-
+        println!("send_request message sent: {:?}", id);
         let notify = Arc::new(Notify::new());
         let mut token = CancellationToken::new(Arc::clone(&notify));
         let stdin = Arc::clone(&self.stdin);
@@ -214,13 +215,16 @@ impl LspServer {
 
         let (tx, mut rx) = mpsc::channel::<Response>(1);
 
+        println!("submitting to channel map: {:?}", id);
         self.channel_map.write().await.insert(Id::Number(id), tx);
+        println!("waiting for channel map: {:?}", id);
 
         let response = rx.recv().await.unwrap();
 
         token.finish();
         cancel.abort();
 
+        println!("{:?}", response);
         serde_json::from_value(response.result().unwrap().to_owned()).unwrap()
     }
 
@@ -329,6 +333,7 @@ enum ClientState {
     Exited = 4,
 }
 
+#[derive(Debug)]
 pub enum ServerMessage {
     Request(Request),
     Notification(NotificationMessage),
